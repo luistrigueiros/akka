@@ -760,4 +760,4 @@ For this purpose you can define a separate dispatcher to be used for the cluster
 .. warning:: 
 
    Don't use a dispatcher with less than 5 threads, because otherwise there is a risk of 
-   deadlock when initializing the Cluster extension. This limitation does not exist in in Akka 2.4.
+   deadlock when initializing the Cluster extension. This limitation does not exist in in Akka 2.4.x.
