@@ -170,4 +170,43 @@ class WebSocketIntegrationSpec extends AkkaSpec("akka.stream.materializer.debug.
 
   }
 
+  "A WebSocket client" must {
+
+    "not close the entire connection when the source completes" in {
+
+      val serverSubscriber = TestSubscriber.probe[Message]()
+      val serverPublisher = TestPublisher.probe[Message]()
+      val handler = Flow.fromSinkAndSource(Sink.fromSubscriber(serverSubscriber), Source.fromPublisher(serverPublisher))
+
+      val bindingFuture = Http().bindAndHandleSync({
+        case HttpRequest(_, _, headers, _, _) ⇒
+          val upgrade = headers.collectFirst { case u: UpgradeToWebSocket ⇒ u }.get
+          upgrade.handleMessages(handler, None)
+      }, interface = "localhost", port = 0)
+      val binding = Await.result(bindingFuture, 3.seconds)
+      val serverPort = binding.localAddress.getPort
+
+      val clientSubscriber = TestSubscriber.probe[Message]()
+      val clientPublisher = TestPublisher.probe[Message]()
+
+      val (upgradeFuture, _) = Http().singleWebSocketRequest(
+        WebSocketRequest(s"ws://localhost:$serverPort/"),
+        Flow.fromSinkAndSource(Sink.fromSubscriber(clientSubscriber), Source.fromPublisher(clientPublisher)))
+      val upgradeResponse = Await.result(upgradeFuture, 3.seconds)
+
+      // source completes
+      clientPublisher.sendComplete()
+
+      // the close triggers after 6 seconds
+      Thread.sleep(6000)
+
+      // the message should pass through even though the other
+      // direction has completed
+      serverPublisher.sendNext(TextMessage("msg"))
+      clientSubscriber.requestNext(TextMessage("msg"))
+
+      binding.unbind()
+
+    }
+  }
 }
