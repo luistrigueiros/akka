@@ -136,10 +136,15 @@ object ActorSystem {
    *
    * @see <a href="http://typesafehub.github.io/config/v1.3.0/" target="_blank">The Typesafe Config Library API Documentation</a>
    */
-  def apply(name: String, config: Option[Config] = None, classLoader: Option[ClassLoader] = None, defaultExecutionContext: Option[ExecutionContext] = None): ActorSystem = {
+  def apply(
+    name:                    String,
+    config:                  Option[Config]           = None,
+    classLoader:             Option[ClassLoader]      = None,
+    defaultExecutionContext: Option[ExecutionContext] = None,
+    actorSystemSettings:     ActorSystemSettings      = ActorSystemSettings.empty): ActorSystem = {
     val cl = classLoader.getOrElse(findClassLoader())
     val appConfig = config.getOrElse(ConfigFactory.load(cl))
-    new ActorSystemImpl(name, appConfig, cl, defaultExecutionContext, None).start()
+    new ActorSystemImpl(name, appConfig, cl, defaultExecutionContext, None, actorSystemSettings).start()
   }
 
   /**
@@ -504,6 +509,11 @@ abstract class ExtendedActorSystem extends ActorSystem {
   def logFilter: LoggingFilter
 
   /**
+   * Programmatic configuration provided when the actor system was created
+   */
+  def actorSystemSettings: ActorSystemSettings
+
+  /**
    * For debugging: traverse actor hierarchy and make string representation.
    * Careful, this may OOM on large actor systems, and it is only meant for
    * helping debugging in case something already went terminally wrong.
@@ -517,7 +527,8 @@ private[akka] class ActorSystemImpl(
   applicationConfig:       Config,
   classLoader:             ClassLoader,
   defaultExecutionContext: Option[ExecutionContext],
-  val guardianProps:       Option[Props]) extends ExtendedActorSystem {
+  val guardianProps:       Option[Props],
+  val actorSystemSettings: ActorSystemSettings) extends ExtendedActorSystem {
 
   if (!name.matches("""^[a-zA-Z0-9][a-zA-Z0-9-_]*$"""))
     throw new IllegalArgumentException(
