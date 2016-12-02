@@ -27,14 +27,20 @@ import scala.compat.java8.OptionConverters._
 
 object ActorSystemBootstrapSettings {
 
+
+  /**
+   * Scala API: Construct a bootstrap settings with default values. Note that passing that to the actor system is the
+   * same as not passing any [[ActorSystemBootstrapSettings]] at all. You can use the returned instance to derive
+   * one that has other values than defaults using the various `with`-methods.
+   */
+  def apply(): ActorSystemBootstrapSettings = {
+    new ActorSystemBootstrapSettings()
+  }
+
   /**
    * Scala API: Create bootstrap settings needed for starting the actor system
-   * @param classLoader If no ClassLoader is given, it obtains the current ClassLoader by first inspecting the current
-   *                    threads' getContextClassLoader, then tries to walk the stack to find the callers class loader, then
-   *                    falls back to the ClassLoader associated with the ActorSystem class.
-   * @param config Configuration to use for the actor system. If no Config is given, the default reference config will be obtained from the ClassLoader.
-   * @param defaultExecutionContext If defined the ExecutionContext will be used as the default executor inside this ActorSystem.
-   *                                If no ExecutionContext is given, the system will fallback to the executor configured under "akka.actor.default-dispatcher.default-executor.fallback".
+   *
+   * @see [[ActorSystemBootstrapSettings]] for description of the properties
    */
   def apply(classLoader: Option[ClassLoader], config: Option[Config], defaultExecutionContext: Option[ExecutionContext]): ActorSystemBootstrapSettings =
     new ActorSystemBootstrapSettings(classLoader, config, defaultExecutionContext)
@@ -46,41 +52,60 @@ object ActorSystemBootstrapSettings {
 
   /**
    * Java API: Create bootstrap settings needed for starting the actor system
-   * @param classLoader If no ClassLoader is given, it obtains the current ClassLoader by first inspecting the current
-   *                    threads' getContextClassLoader, then tries to walk the stack to find the callers class loader, then
-   *                    falls back to the ClassLoader associated with the ActorSystem class.
-   * @param config Configuration to use for the actor system. If no Config is given, the default reference config will be obtained from the ClassLoader.
-   * @param defaultExecutionContext If defined the ExecutionContext will be used as the default executor inside this ActorSystem.
-   *                                If no ExecutionContext is given, the system will fallback to the executor configured under "akka.actor.default-dispatcher.default-executor.fallback".
+   *
+   * @see [[ActorSystemBootstrapSettings]] for description of the properties
    */
   def create(classLoader: Optional[ClassLoader], config: Optional[Config], defaultExecutionContext: Optional[ExecutionContext]): ActorSystemBootstrapSettings =
     apply(classLoader.asScala, config.asScala, defaultExecutionContext.asScala)
 
   /**
-   * Scala API: Short for using custom config but keeping default classloader and default execution context
+   * Java  API: Short for using custom config but keeping default classloader and default execution context
    */
   def create(config: Config): ActorSystemBootstrapSettings = apply(config)
+
+
+  /**
+   * Java API: Construct a bootstrap settings with default values. Note that passing that to the actor system is the
+   * same as not passing any [[ActorSystemBootstrapSettings]] at all. You can use the returned instance to derive
+   * one that has other values than defaults using the various `with`-methods.
+   */
+  def create(): ActorSystemBootstrapSettings = {
+    new ActorSystemBootstrapSettings()
+  }
 
 }
 
 /**
- * Core bootstrap settings of the actor system, create using one of the factories in [[ActorSystemBootstrapSettings]].
+ * Core bootstrap settings of the actor system, create using one of the factories in [[ActorSystemBootstrapSettings]],
+ * constructor is *Internal API*.
  *
- * Constructor is internal API
+ * @param classLoader If no ClassLoader is given, it obtains the current ClassLoader by first inspecting the current
+ *                    threads' getContextClassLoader, then tries to walk the stack to find the callers class loader, then
+ *                    falls back to the ClassLoader associated with the ActorSystem class.
+ * @param config Configuration to use for the actor system. If no Config is given, the default reference config will be obtained from the ClassLoader.
+ * @param defaultExecutionContext If defined the ExecutionContext will be used as the default executor inside this ActorSystem.
+ *                                If no ExecutionContext is given, the system will fallback to the executor configured under
+ *                                "akka.actor.default-dispatcher.default-executor.fallback".
+ * @param actorRefProvider Overrides the `akka.actor.provider` setting in config, can be `local` (default), `remote` or
+ *                         `cluster`. It can also be a fully qualified class name of a provider.
  */
 final class ActorSystemBootstrapSettings private[akka] (
-  val classLoader:             Option[ClassLoader],
-  val config:                  Option[Config],
-  val defaultExecutionContext: Option[ExecutionContext]) extends ActorSystemSetting {
+  val classLoader:             Option[ClassLoader] = None,
+  val config:                  Option[Config] = None,
+  val defaultExecutionContext: Option[ExecutionContext] = None,
+  val actorRefProvider: Option[String] = None) extends ActorSystemSetting {
 
   def withClassloader(classLoader: ClassLoader): ActorSystemBootstrapSettings =
-    new ActorSystemBootstrapSettings(Some(classLoader), config, defaultExecutionContext)
+    new ActorSystemBootstrapSettings(Some(classLoader), config, defaultExecutionContext, actorRefProvider)
 
   def withConfig(config: Config): ActorSystemBootstrapSettings =
-    new ActorSystemBootstrapSettings(classLoader, Some(config), defaultExecutionContext)
+    new ActorSystemBootstrapSettings(classLoader, Some(config), defaultExecutionContext, actorRefProvider)
 
   def withDefaultExecutionContext(executionContext: ExecutionContext): ActorSystemBootstrapSettings =
-    new ActorSystemBootstrapSettings(classLoader, config, Some(executionContext))
+    new ActorSystemBootstrapSettings(classLoader, config, Some(executionContext), actorRefProvider)
+
+  def withActorRefProvider(name: String): ActorSystemBootstrapSettings =
+    new ActorSystemBootstrapSettings(classLoader, config, defaultExecutionContext, Some(name))
 
 }
 
@@ -265,13 +290,15 @@ object ActorSystem {
 
     final val ConfigVersion: String = getString("akka.version")
     final val ProviderClass: String =
-      getString("akka.actor.provider") match {
-        case "local"   ⇒ classOf[LocalActorRefProvider].getName
-        // these two cannot be referenced by class as they may not be on the classpath
-        case "remote"  ⇒ "akka.remote.RemoteActorRefProvider"
-        case "cluster" ⇒ "akka.cluster.ClusterActorRefProvider"
-        case fqcn      ⇒ fqcn
-      }
+      actorSystemSettings.get[ActorSystemBootstrapSettings]
+        .flatMap(_.actorRefProvider)
+        .getOrElse(getString("akka.actor.provider")) match {
+          case "local"   ⇒ classOf[LocalActorRefProvider].getName
+          // these two cannot be referenced by class as they may not be on the classpath
+          case "remote"  ⇒ "akka.remote.RemoteActorRefProvider"
+          case "cluster" ⇒ "akka.cluster.ClusterActorRefProvider"
+          case fqcn      ⇒ fqcn
+        }
 
     final val SupervisorStrategyClass: String = getString("akka.actor.guardian-supervisor-strategy")
     final val CreationTimeout: Timeout = Timeout(config.getMillisDuration("akka.actor.creation-timeout"))
