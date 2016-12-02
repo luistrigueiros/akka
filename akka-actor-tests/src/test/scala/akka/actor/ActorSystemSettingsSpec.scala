@@ -33,6 +33,16 @@ class ActorSystemSettingsSpec extends WordSpec with Matchers {
       settings.get[DummySetting] should ===(Some(setting2))
     }
 
+    "provide a fluent creation alternative" in {
+      val a = DummySetting("Al Dente")
+      val b = DummySetting("Earl E. Bird") // same type again
+      val c = DummySetting2("Amanda Reckonwith")
+      val settings = a and b and c
+
+      settings.get[DummySetting] should ===(Some(b))
+      settings.get[DummySetting2] should ===(Some(c))
+    }
+
     "be created with a set of settings" in {
       val setting1 = DummySetting("Manny Kin")
       val setting2 = DummySetting2("Pepe Roni")

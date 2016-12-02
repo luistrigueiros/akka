@@ -14,7 +14,15 @@ import scala.reflect.ClassTag
  * is not specified in the settings that means defaults are used (usually from the config file) - no concrete
  * setting should be mandatory in the [[ActorSystemSettings]] that an actor system is created with.
  */
-trait ActorSystemSetting
+trait ActorSystemSetting {
+
+  /**
+   * Construct an [[ActorSystemSettings]] with this setting and another one. Allows for
+   * fluent creation of settings.
+   */
+  def and(other: ActorSystemSetting): ActorSystemSettings = ActorSystemSettings(this, other)
+
+}
 
 object ActorSystemSettings {
 
@@ -60,6 +68,12 @@ final class ActorSystemSettings(settings: Map[Class[_], AnyRef]) {
   def withSetting[T <: ActorSystemSetting](t: T): ActorSystemSettings = {
     new ActorSystemSettings(settings + (t.getClass → t))
   }
+
+  /**
+   * alias for `withSetting` allowing for fluent combination of settings: `a and b and c`, where `a`, `b` and `c` are
+   * concrete [[ActorSystemSetting]] instances.
+   */
+  def and[T <: ActorSystemSetting](t: T): ActorSystemSettings = withSetting(t)
 
   override def toString: String = s"""ActorSystemSettings(${settings.keys.map(_.getName).mkString(",")})"""
 }
