@@ -10,7 +10,9 @@ import scala.compat.java8.OptionConverters._
 import scala.reflect.ClassTag
 
 /**
- * Marker trait for a setting that can be put inside [[ActorSystemSettings]]
+ * Marker trait for a setting that can be put inside [[ActorSystemSettings]], if a specific concrete setting
+ * is not specified in the settings that means defaults are used (usually from the config file) - no concrete
+ * setting should be mandatory in the [[ActorSystemSettings]] that an actor system is created with.
  */
 trait ActorSystemSetting
 
@@ -19,13 +21,13 @@ object ActorSystemSettings {
   val empty = new ActorSystemSettings(Map.empty)
 
   /**
-   * Scala API:
+   * Scala API: Create an [[ActorSystemSettings]] containing all the provided settings
    */
   def apply(settings: ActorSystemSetting*): ActorSystemSettings =
     new ActorSystemSettings(settings.map(s ⇒ s.getClass → s).toMap)
 
   /**
-   * Java API:
+   * Java API: Create an [[ActorSystemSettings]] containing all the provided settings
    */
   @varargs
   def create(settings: ActorSystemSetting*): ActorSystemSettings = apply(settings: _*)
@@ -37,14 +39,14 @@ object ActorSystemSettings {
 final class ActorSystemSettings(settings: Map[Class[_], AnyRef]) {
 
   /**
-   * Java API: Extract a concrete [[ActorSystemSetting]] if it is defined
+   * Java API: Extract a concrete [[ActorSystemSetting]] of type `T` if it is defined in the settings.
    */
   def get[T <: ActorSystemSetting](clazz: Class[T]): Optional[T] = {
     settings.get(clazz).map(_.asInstanceOf[T]).asJava
   }
 
   /**
-   * Scala API: Extract a concrete [[ActorSystemSetting]] if it is defined
+   * Scala API: Extract a concrete [[ActorSystemSetting]] of type `T` if it is defined in the settings.
    */
   def get[T <: ActorSystemSetting: ClassTag]: Option[T] = {
     val clazz = implicitly[ClassTag[T]].runtimeClass
@@ -52,8 +54,8 @@ final class ActorSystemSettings(settings: Map[Class[_], AnyRef]) {
   }
 
   /**
-   * Add a concrete [[ActorSystemSetting]]. If a value of the same setting already was present it will be
-   * replaced with this.
+   * Add a concrete [[ActorSystemSetting]]. If a setting of the same concrete [[ActorSystemSetting]] already is
+   * present it will be.
    */
   def withSetting[T <: ActorSystemSetting](t: T): ActorSystemSettings = {
     new ActorSystemSettings(settings + (t.getClass → t))

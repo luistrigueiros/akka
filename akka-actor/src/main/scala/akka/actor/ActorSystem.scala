@@ -40,6 +40,11 @@ object ActorSystemBootstrapSettings {
     new ActorSystemBootstrapSettings(classLoader, config, defaultExecutionContext)
 
   /**
+   * Scala API: Short for using custom config but keeping default classloader and default execution context
+   */
+  def apply(config: Config): ActorSystemBootstrapSettings = apply(None, Some(config), None)
+
+  /**
    * Java API: Create bootstrap settings needed for starting the actor system
    * @param classLoader If no ClassLoader is given, it obtains the current ClassLoader by first inspecting the current
    *                    threads' getContextClassLoader, then tries to walk the stack to find the callers class loader, then
@@ -51,12 +56,33 @@ object ActorSystemBootstrapSettings {
   def create(classLoader: Optional[ClassLoader], config: Optional[Config], defaultExecutionContext: Optional[ExecutionContext]): ActorSystemBootstrapSettings =
     apply(classLoader.asScala, config.asScala, defaultExecutionContext.asScala)
 
+  /**
+   * Scala API: Short for using custom config but keeping default classloader and default execution context
+   */
+  def create(config: Config): ActorSystemBootstrapSettings = apply(config)
+
 }
 
-final class ActorSystemBootstrapSettings(
+/**
+ * Core bootstrap settings of the actor system, create using one of the factories in [[ActorSystemBootstrapSettings]].
+ *
+ * Constructor is internal API
+ */
+final class ActorSystemBootstrapSettings private[akka] (
   val classLoader:             Option[ClassLoader],
   val config:                  Option[Config],
-  val defaultExecutionContext: Option[ExecutionContext]) extends ActorSystemSetting
+  val defaultExecutionContext: Option[ExecutionContext]) extends ActorSystemSetting {
+
+  def withClassloader(classLoader: ClassLoader): ActorSystemBootstrapSettings =
+    new ActorSystemBootstrapSettings(Some(classLoader), config, defaultExecutionContext)
+
+  def withConfig(config: Config): ActorSystemBootstrapSettings =
+    new ActorSystemBootstrapSettings(classLoader, Some(config), defaultExecutionContext)
+
+  def withDefaultExecutionContext(executionContext: ExecutionContext): ActorSystemBootstrapSettings =
+    new ActorSystemBootstrapSettings(classLoader, config, Some(executionContext))
+
+}
 
 object ActorSystem {
 
@@ -94,8 +120,16 @@ object ActorSystem {
 
   /**
    * Java API: Creates a new actor system with the specified name and settings
+   * The core actor system settings are defined in [[ActorSystemBootstrapSettings]]
    */
   def create(name: String, settings: ActorSystemSettings): ActorSystem = apply(name, settings)
+
+  /**
+   * Java API: Shortcut for creating an actor system with custom bootstrap settings.
+   * Same behaviour as calling `ActorSystem.create(name, ActorSystemSettings.create(bootstrapSettings))`
+   */
+  def create(name: String, bootstrapSettings: ActorSystemBootstrapSettings): ActorSystem =
+    create(name, ActorSystemSettings.create(bootstrapSettings))
 
   /**
    * Creates a new ActorSystem with the specified name, and the specified Config, then
@@ -151,6 +185,7 @@ object ActorSystem {
 
   /**
    * Scala API: Creates a new actor system with the specified name and settings
+   * The core actor system settings are defined in [[ActorSystemBootstrapSettings]]
    */
   def apply(name: String, settings: ActorSystemSettings): ActorSystem = {
     val bootstrapSettings = settings.get[ActorSystemBootstrapSettings]
@@ -160,6 +195,13 @@ object ActorSystem {
 
     new ActorSystemImpl(name, appConfig, cl, defaultEC, None, settings).start()
   }
+
+  /**
+   * Scala API: Shortcut for creating an actor system with custom bootstrap settings.
+   * Same behaviour as calling `ActorSystem(name, ActorSystemSettings(bootstrapSettings))`
+   */
+  def apply(name: String, bootstrapSettings: ActorSystemBootstrapSettings): ActorSystem =
+    create(name, ActorSystemSettings.create(bootstrapSettings))
 
   /**
    * Creates a new ActorSystem with the specified name, and the specified Config, then
@@ -194,7 +236,7 @@ object ActorSystem {
     config:                  Option[Config]           = None,
     classLoader:             Option[ClassLoader]      = None,
     defaultExecutionContext: Option[ExecutionContext] = None): ActorSystem =
-    apply(name, ActorSystemSettings(ActorSystemBootstrapSettings.apply(classLoader, config, defaultExecutionContext)))
+    apply(name, ActorSystemSettings(ActorSystemBootstrapSettings(classLoader, config, defaultExecutionContext)))
 
   /**
    * Settings are the overall ActorSystem Settings which also provides a convenient access to the Config object.
@@ -203,7 +245,9 @@ object ActorSystem {
    *
    * @see <a href="http://typesafehub.github.io/config/v1.3.0/" target="_blank">The Typesafe Config Library API Documentation</a>
    */
-  class Settings(classLoader: ClassLoader, cfg: Config, final val name: String) {
+  class Settings(classLoader: ClassLoader, cfg: Config, final val name: String, val actorSystemSettings: ActorSystemSettings) {
+
+    def this(classLoader: ClassLoader, cfg: Config, name: String) = this(classLoader, cfg, name, ActorSystemSettings())
 
     /**
      * The backing Config of this ActorSystem's Settings
@@ -558,11 +602,6 @@ abstract class ExtendedActorSystem extends ActorSystem {
   def logFilter: LoggingFilter
 
   /**
-   * Programmatic configuration provided when the actor system was created
-   */
-  def actorSystemSettings: ActorSystemSettings
-
-  /**
    * For debugging: traverse actor hierarchy and make string representation.
    * Careful, this may OOM on large actor systems, and it is only meant for
    * helping debugging in case something already went terminally wrong.
@@ -577,7 +616,7 @@ private[akka] class ActorSystemImpl(
   classLoader:             ClassLoader,
   defaultExecutionContext: Option[ExecutionContext],
   val guardianProps:       Option[Props],
-  val actorSystemSettings: ActorSystemSettings) extends ExtendedActorSystem {
+  actorSystemSettings:     ActorSystemSettings) extends ExtendedActorSystem {
 
   if (!name.matches("""^[a-zA-Z0-9][a-zA-Z0-9-_]*$"""))
     throw new IllegalArgumentException(
@@ -587,7 +626,7 @@ private[akka] class ActorSystemImpl(
   import ActorSystem._
 
   @volatile private var logDeadLetterListener: Option[ActorRef] = None
-  final val settings: Settings = new Settings(classLoader, applicationConfig, name)
+  final val settings: Settings = new Settings(classLoader, applicationConfig, name, actorSystemSettings)
 
   protected def uncaughtExceptionHandler: Thread.UncaughtExceptionHandler =
     new Thread.UncaughtExceptionHandler() {

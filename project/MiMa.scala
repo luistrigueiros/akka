@@ -534,6 +534,7 @@ object MiMa extends AutoPlugin {
         ProblemFilters.exclude[DirectMissingMethodProblem]("akka.actor.ActorSystemImpl.this"),
         ProblemFilters.exclude[ReversedMissingMethodProblem]("akka.actor.ExtendedActorSystem.actorSystemSettings")
       )
+      // Entries should be added to a section keyed with the latest released version before the change
     )
   }
 }

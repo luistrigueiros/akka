@@ -257,7 +257,7 @@ class Serialization(val system: ExtendedActorSystem) extends Extension {
    * Programmatically defined serializers
    */
   private val serializerDetails =
-    system.actorSystemSettings.get[SerializationSettings] match {
+    system.settings.actorSystemSettings.get[SerializationSettings] match {
       case None          ⇒ Vector.empty
       case Some(setting) ⇒ setting.createSerializers(system)
     }
