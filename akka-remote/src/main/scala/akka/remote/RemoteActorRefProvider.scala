@@ -133,8 +133,6 @@ private[akka] class RemoteActorRefProvider(
   val dynamicAccess: DynamicAccess) extends ActorRefProvider {
   import RemoteActorRefProvider._
 
-  val remoteSettings: RemoteSettings = new RemoteSettings(settings.config)
-
   override val deployer: Deployer = createDeployer
 
   /**
@@ -179,7 +177,11 @@ private[akka] class RemoteActorRefProvider(
 
   @volatile private var actorRefResolveThreadLocalCache: ActorRefResolveThreadLocalCache = _
 
+  @volatile private var _remoteSettings: RemoteSettings = _
+  final def remoteSettings = _remoteSettings
+
   def init(system: ActorSystemImpl): Unit = {
+    _remoteSettings = new RemoteSettings(settings.config, system.settings.actorSystemSettings.get[RemotingSettings])
     local.init(system)
 
     actorRefResolveThreadLocalCache = ActorRefResolveThreadLocalCache(system)
@@ -216,15 +218,15 @@ private[akka] class RemoteActorRefProvider(
   }
 
   protected def createRemoteWatcher(system: ActorSystemImpl): ActorRef = {
-    import remoteSettings._
+
     val failureDetector = createRemoteWatcherFailureDetector(system)
     system.systemActorOf(
-      configureDispatcher(
+      remoteSettings.configureDispatcher(
         RemoteWatcher.props(
           failureDetector,
-          heartbeatInterval = WatchHeartBeatInterval,
-          unreachableReaperInterval = WatchUnreachableReaperInterval,
-          heartbeatExpectedResponseAfter = WatchHeartbeatExpectedResponseAfter)),
+          heartbeatInterval = remoteSettings.WatchHeartBeatInterval,
+          unreachableReaperInterval = remoteSettings.WatchUnreachableReaperInterval,
+          heartbeatExpectedResponseAfter = remoteSettings.WatchHeartbeatExpectedResponseAfter)),
       "remote-watcher")
   }
 

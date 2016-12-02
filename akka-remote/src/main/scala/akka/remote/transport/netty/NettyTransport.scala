@@ -8,27 +8,29 @@ import akka.dispatch.ThreadPoolConfig
 import akka.event.Logging
 import akka.remote.transport.AssociationHandle.HandleEventListener
 import akka.remote.transport.Transport._
-import akka.remote.transport.netty.NettyTransportSettings.{ Udp, Tcp, Mode }
+import akka.remote.transport.netty.NettyTransportSettings.{ Mode, Tcp, Udp }
 import akka.remote.transport.{ AssociationHandle, Transport }
-import akka.{ OnlyCauseStackTrace, ConfigurationException }
+import akka.{ ConfigurationException, OnlyCauseStackTrace }
 import com.typesafe.config.Config
-import java.net.{ SocketAddress, InetAddress, InetSocketAddress }
+import java.net.{ InetAddress, InetSocketAddress, SocketAddress }
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{ ConcurrentHashMap, Executors, CancellationException }
-import org.jboss.netty.bootstrap.{ ConnectionlessBootstrap, Bootstrap, ClientBootstrap, ServerBootstrap }
-import org.jboss.netty.buffer.{ ChannelBuffers, ChannelBuffer }
+import java.util.concurrent.{ CancellationException, ConcurrentHashMap, Executors }
+
+import org.jboss.netty.bootstrap.{ Bootstrap, ClientBootstrap, ConnectionlessBootstrap, ServerBootstrap }
+import org.jboss.netty.buffer.{ ChannelBuffer, ChannelBuffers }
 import org.jboss.netty.channel._
-import org.jboss.netty.channel.group.{ DefaultChannelGroup, ChannelGroup, ChannelGroupFuture, ChannelGroupFutureListener }
-import org.jboss.netty.channel.socket.nio.{ NioWorkerPool, NioDatagramChannelFactory, NioServerSocketChannelFactory, NioClientSocketChannelFactory }
+import org.jboss.netty.channel.group.{ ChannelGroup, ChannelGroupFuture, ChannelGroupFutureListener, DefaultChannelGroup }
+import org.jboss.netty.channel.socket.nio.{ NioClientSocketChannelFactory, NioDatagramChannelFactory, NioServerSocketChannelFactory, NioWorkerPool }
 import org.jboss.netty.handler.codec.frame.{ LengthFieldBasedFrameDecoder, LengthFieldPrepender }
 import org.jboss.netty.handler.ssl.SslHandler
-import scala.concurrent.duration.{ FiniteDuration }
-import scala.concurrent.{ ExecutionContext, Promise, Future, blocking }
-import scala.util.{ Try }
+
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ ExecutionContext, Future, Promise, blocking }
+import scala.util.Try
 import scala.util.control.{ NoStackTrace, NonFatal }
 import akka.util.Helpers.Requiring
 import akka.util.Helpers
-import akka.remote.RARP
+import akka.remote.{ RARP, RemotingSettings }
 import org.jboss.netty.util.HashedWheelTimer
 
 object NettyTransportSettings {
@@ -74,7 +76,10 @@ class NettyTransportExceptionNoStack(msg: String, cause: Throwable) extends Nett
   def this(msg: String) = this(msg, null)
 }
 
-class NettyTransportSettings(config: Config) {
+class NettyTransportSettings(config: Config, programmaticConfig: Option[RemotingSettings]) {
+
+  // for binary compatibility
+  def this(config: Config) = this(config, None)
 
   import akka.util.Helpers.ConfigOps
   import config._
@@ -124,10 +129,12 @@ class NettyTransportSettings(config: Config) {
     case _                 ⇒ getBoolean("tcp-reuse-addr")
   }
 
-  val Hostname: String = getString("hostname") match {
-    case ""    ⇒ InetAddress.getLocalHost.getHostAddress
-    case value ⇒ value
-  }
+  val Hostname: String =
+    programmaticConfig.flatMap(_.host).getOrElse(
+      getString("hostname") match {
+        case ""    ⇒ InetAddress.getLocalHost.getHostAddress
+        case value ⇒ value
+      })
 
   val BindHostname: String = getString("bind-hostname") match {
     case ""    ⇒ Hostname
@@ -135,7 +142,7 @@ class NettyTransportSettings(config: Config) {
   }
 
   @deprecated("WARNING: This should only be used by professionals.", "2.0")
-  val PortSelector: Int = getInt("port")
+  val PortSelector: Int = programmaticConfig.flatMap(_.port).getOrElse(getInt("port"))
 
   @deprecated("WARNING: This should only be used by professionals.", "2.4")
   val BindPortSelector: Int = getString("bind-port") match {
@@ -260,7 +267,8 @@ private[transport] object NettyTransport {
 // FIXME: Split into separate UDP and TCP classes
 class NettyTransport(val settings: NettyTransportSettings, val system: ExtendedActorSystem) extends Transport {
 
-  def this(system: ExtendedActorSystem, conf: Config) = this(new NettyTransportSettings(conf), system)
+  def this(system: ExtendedActorSystem, conf: Config) =
+    this(new NettyTransportSettings(conf, system.settings.actorSystemSettings.get[RemotingSettings]), system)
 
   import NettyTransport._
   import settings._

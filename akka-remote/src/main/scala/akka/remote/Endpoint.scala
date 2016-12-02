@@ -59,7 +59,8 @@ private[remote] class DefaultMessageDispatcher(
     serializedMessage: SerializedMessage,
     senderOption:      OptionVal[ActorRef]): Unit = {
 
-    import provider.remoteSettings._
+    val remoteSettings = provider.remoteSettings
+    import remoteSettings._
 
     lazy val payload: AnyRef = MessageSerializer.deserialize(system, serializedMessage)
     def payloadClass: Class[_] = if (payload eq null) null else payload.getClass

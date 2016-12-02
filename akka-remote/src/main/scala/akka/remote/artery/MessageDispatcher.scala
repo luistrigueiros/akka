@@ -35,7 +35,8 @@ private[remote] class MessageDispatcher(
     senderOption:  OptionVal[ActorRef],
     originAddress: OptionVal[Address]): Unit = {
 
-    import provider.remoteSettings.Artery._
+    val remoteSettings = provider.remoteSettings
+    import remoteSettings.Artery._
     import Logging.messageClassName
 
     val sender: ActorRef = senderOption.getOrElse(system.deadLetters)

@@ -4,22 +4,40 @@
 package akka.remote
 
 import com.typesafe.config.Config
+
 import scala.concurrent.duration._
 import akka.util.Timeout
+
 import scala.collection.immutable
 import akka.util.Helpers.{ ConfigOps, Requiring, toRootLowerCase }
 import akka.japi.Util._
-import akka.actor.Props
+import akka.actor.{ ActorSystemSetting, Props }
 import akka.event.Logging
 import akka.event.Logging.LogLevel
 import akka.ConfigurationException
 import akka.remote.artery.ArterySettings
 
-final class RemoteSettings(val config: Config) {
+object RemotingSettings {
+  def apply(host: String, port: Int): RemotingSettings = new RemotingSettings(Some(host), Some(port), false)
+  def artery(host: String, port: Int): RemotingSettings = new RemotingSettings(Some(host), Some(port), true)
+}
+
+/**
+ * Programmatic configuration of some aspects of remoting, shared for both "old" remoting and Artery
+ *
+ * @param host hostname to bind remoting to, will trump host setting in configuration
+ * @param port port to bind remoting to, will trump port setting in configuration
+ */
+final class RemotingSettings(val host: Option[String], val port: Option[Int], val useArtery: Boolean) extends ActorSystemSetting
+
+final class RemoteSettings(val config: Config, programmaticSettings: Option[RemotingSettings]) {
   import config._
   import scala.collection.JavaConverters._
 
-  val Artery = ArterySettings(getConfig("akka.remote.artery"))
+  // for binary compatibility
+  def this(config: Config) = this(config, None)
+
+  val Artery = ArterySettings(getConfig("akka.remote.artery"), programmaticSettings)
 
   val LogReceive: Boolean = getBoolean("akka.remote.log-received-messages")
 

@@ -3,11 +3,14 @@
  */
 package akka.remote
 
+import akka.actor.{ ActorSystem, ActorSystemSettings }
+
 import language.postfixOps
-import akka.testkit.AkkaSpec
+import akka.testkit.{ AkkaSpec, SocketUtil }
+
 import scala.concurrent.duration._
 import akka.remote.transport.AkkaProtocolSettings
-import akka.util.{ Helpers }
+import akka.util.Helpers
 import akka.util.Helpers.ConfigOps
 import akka.remote.transport.netty.{ NettyTransportSettings, SSLSettings }
 
@@ -136,5 +139,6 @@ class RemoteConfigSpec extends AkkaSpec(
       val c = RARP(system).provider.remoteSettings.config.getConfig("akka.remote.gremlin")
       c.getBoolean("debug") should ===(false)
     }
+
   }
 }

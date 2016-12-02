@@ -3,36 +3,33 @@
  */
 package akka.remote.artery
 
-import akka.japi.Util.immutableSeq
-import akka.ConfigurationException
-import akka.event.Logging
-import akka.event.Logging.LogLevel
-import akka.stream.ActorMaterializerSettings
-import akka.util.Helpers.{ ConfigOps, Requiring, toRootLowerCase }
-import akka.util.WildcardIndex
+import java.net.InetAddress
+
 import akka.NotUsed
+import akka.japi.Util.immutableSeq
+import akka.remote.RemotingSettings
+import akka.stream.ActorMaterializerSettings
+import akka.util.Helpers.{ ConfigOps, Requiring }
+import akka.util.WildcardIndex
 import com.typesafe.config.Config
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import java.net.InetAddress
-import java.nio.file.Path
-import java.util.concurrent.TimeUnit
 
 /** INTERNAL API */
-private[akka] final class ArterySettings private (config: Config) {
-  import config._
+private[akka] final class ArterySettings private (config: Config, programmaticSettings: Option[RemotingSettings]) {
   import ArterySettings._
+  import config._
 
-  val Enabled: Boolean = getBoolean("enabled")
+  val Enabled: Boolean = programmaticSettings.exists(_.useArtery) || getBoolean("enabled")
 
   object Canonical {
     val config = getConfig("canonical")
-    import config._
 
-    val Port: Int = getInt("port").requiring(port ⇒
-      0 to 65535 contains port, "canonical.port must be 0 through 65535")
-    val Hostname: String = getHostname("hostname", config)
+    val Port: Int = programmaticSettings.flatMap(_.port)
+      .getOrElse(config getInt ("port"))
+      .requiring(port ⇒ 0 to 65535 contains port, "canonical.port must be 0 through 65535")
+    val Hostname: String = programmaticSettings.flatMap(_.host).getOrElse(getHostname("hostname", config))
   }
 
   object Bind {
@@ -145,7 +142,8 @@ private[akka] final class ArterySettings private (config: Config) {
 
 /** INTERNAL API */
 private[akka] object ArterySettings {
-  def apply(config: Config) = new ArterySettings(config)
+  def apply(config: Config, programmaticSettings: Option[RemotingSettings] = None) =
+    new ArterySettings(config, programmaticSettings)
 
   /** INTERNAL API */
   private[remote] final class Compression private[ArterySettings] (config: Config) {

@@ -2,9 +2,9 @@ package akka.remote.transport.netty
 
 import java.net.{ InetAddress, InetSocketAddress }
 
-import akka.testkit.SocketUtil
-import akka.actor.{ ActorSystem, Address, ExtendedActorSystem }
-import akka.remote.BoundAddressesExtension
+import akka.testkit.{ SocketUtil, TestKit }
+import akka.actor.{ ActorSystem, ActorSystemBootstrapSettings, ActorSystemSettings, Address, ExtendedActorSystem }
+import akka.remote.{ BoundAddressesExtension, RARP, RemotingSettings }
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{ Matchers, WordSpec }
 
@@ -115,6 +115,23 @@ class NettyTransportSpec extends WordSpec with Matchers with BindBehaviour {
       getInternal.map(_.host.get should include regex "0.0.0.0".r) // regexp dot is intentional to match IPv4 and 6 addresses
 
       Await.result(sys.terminate(), Duration.Inf)
+    }
+
+    "pickup programmatic config" in {
+      var system: ActorSystem = null
+      try {
+        val (host, port) = SocketUtil.temporaryServerHostnameAndPort()
+        system = ActorSystem(
+          "programmatic-remote-config",
+          ActorSystemBootstrapSettings().withActorRefProvider("remote") and RemotingSettings(host, port)
+        )
+
+        val address = RARP(system).provider.getDefaultAddress
+        address.host should ===(Some(host))
+        address.port should ===(Some(port))
+      } finally {
+        TestKit.shutdownActorSystem(system)
+      }
     }
   }
 }

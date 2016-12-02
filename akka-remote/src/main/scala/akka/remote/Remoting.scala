@@ -130,7 +130,8 @@ private[remote] class Remoting(_system: ExtendedActorSystem, _provider: RemoteAc
   // a lazy val
   @volatile var defaultAddress: Address = _
 
-  import provider.remoteSettings._
+  private val remoteSettings = provider.remoteSettings
+  import remoteSettings._
 
   val transportSupervisor = system.systemActorOf(
     configureDispatcher(Props[TransportSupervisor]),
@@ -444,7 +445,7 @@ private[remote] class EndpointManager(conf: Config, log: LoggingAdapter) extends
   import EndpointManager._
   import context.dispatcher
 
-  val settings = new RemoteSettings(conf)
+  val settings = new RemoteSettings(conf, context.system.settings.actorSystemSettings.get[RemotingSettings])
   val extendedSystem = context.system.asInstanceOf[ExtendedActorSystem]
   val endpointId: Iterator[Int] = Iterator from 0
 
