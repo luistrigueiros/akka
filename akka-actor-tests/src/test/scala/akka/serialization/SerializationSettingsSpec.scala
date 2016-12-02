@@ -3,7 +3,7 @@
  */
 package akka.serialization
 
-import akka.actor.{ ActorSystem, ActorSystemSettings }
+import akka.actor.{ ActorSystem, ActorSystemBootstrapSettings, ActorSystemSettings }
 import akka.testkit.AkkaSpec
 import com.typesafe.config.ConfigFactory
 
@@ -19,14 +19,7 @@ object SerializationSettingsSpec {
       SerializerDetails("test", testSerializer, List(classOf[ProgrammaticDummy]))
     )
   }
-  val actorSystemSettings = ActorSystemSettings(serializationSettings)
-
-}
-
-class SerializationSettingsSpec extends AkkaSpec(
-  ActorSystem(
-    "SerializationSettingsSpec",
-    config = Some(ConfigFactory.parseString("""
+  val bootstrapSettings = ActorSystemBootstrapSettings(None, Some(ConfigFactory.parseString("""
     akka {
       actor {
         serialize-messages = off
@@ -35,8 +28,13 @@ class SerializationSettingsSpec extends AkkaSpec(
         }
       }
     }
-    """)),
-    actorSystemSettings = SerializationSettingsSpec.actorSystemSettings)
+    """)), None)
+  val actorSystemSettings = ActorSystemSettings(bootstrapSettings, serializationSettings)
+
+}
+
+class SerializationSettingsSpec extends AkkaSpec(
+  ActorSystem("SerializationSettingsSpec", SerializationSettingsSpec.actorSystemSettings)
 ) {
 
   import SerializationSettingsSpec._

@@ -5,8 +5,9 @@
 package akka.actor
 
 import java.io.Closeable
-import java.util.concurrent.{ ConcurrentHashMap, ThreadFactory, CountDownLatch, RejectedExecutionException }
-import java.util.concurrent.atomic.{ AtomicReference }
+import java.util.concurrent.{ ConcurrentHashMap, CountDownLatch, RejectedExecutionException, ThreadFactory }
+import java.util.concurrent.atomic.AtomicReference
+
 import com.typesafe.config.{ Config, ConfigFactory }
 import akka.event._
 import akka.dispatch._
@@ -14,13 +15,48 @@ import akka.japi.Util.immutableSeq
 import akka.actor.dungeon.ChildrenContainer
 import akka.util._
 import akka.util.Helpers.toRootLowerCase
+
 import scala.annotation.tailrec
 import scala.collection.immutable
-import scala.concurrent.duration.{ Duration }
-import scala.concurrent.{ Await, Future, Promise, ExecutionContext, ExecutionContextExecutor }
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContext, ExecutionContextExecutor, Future, Promise }
 import scala.util.{ Failure, Success, Try }
-import scala.util.control.{ NonFatal, ControlThrowable }
-import java.util.Locale
+import scala.util.control.{ ControlThrowable, NonFatal }
+import java.util.Optional
+import scala.compat.java8.OptionConverters._
+
+object ActorSystemBootstrapSettings {
+
+  /**
+   * Scala API: Create bootstrap settings needed for starting the actor system
+   * @param classLoader If no ClassLoader is given, it obtains the current ClassLoader by first inspecting the current
+   *                    threads' getContextClassLoader, then tries to walk the stack to find the callers class loader, then
+   *                    falls back to the ClassLoader associated with the ActorSystem class.
+   * @param config Configuration to use for the actor system. If no Config is given, the default reference config will be obtained from the ClassLoader.
+   * @param defaultExecutionContext If defined the ExecutionContext will be used as the default executor inside this ActorSystem.
+   *                                If no ExecutionContext is given, the system will fallback to the executor configured under "akka.actor.default-dispatcher.default-executor.fallback".
+   */
+  def apply(classLoader: Option[ClassLoader], config: Option[Config], defaultExecutionContext: Option[ExecutionContext]): ActorSystemBootstrapSettings =
+    new ActorSystemBootstrapSettings(classLoader, config, defaultExecutionContext)
+
+  /**
+   * Java API: Create bootstrap settings needed for starting the actor system
+   * @param classLoader If no ClassLoader is given, it obtains the current ClassLoader by first inspecting the current
+   *                    threads' getContextClassLoader, then tries to walk the stack to find the callers class loader, then
+   *                    falls back to the ClassLoader associated with the ActorSystem class.
+   * @param config Configuration to use for the actor system. If no Config is given, the default reference config will be obtained from the ClassLoader.
+   * @param defaultExecutionContext If defined the ExecutionContext will be used as the default executor inside this ActorSystem.
+   *                                If no ExecutionContext is given, the system will fallback to the executor configured under "akka.actor.default-dispatcher.default-executor.fallback".
+   */
+  def create(classLoader: Optional[ClassLoader], config: Optional[Config], defaultExecutionContext: Optional[ExecutionContext]): ActorSystemBootstrapSettings =
+    apply(classLoader.asScala, config.asScala, defaultExecutionContext.asScala)
+
+}
+
+final class ActorSystemBootstrapSettings(
+  val classLoader:             Option[ClassLoader],
+  val config:                  Option[Config],
+  val defaultExecutionContext: Option[ExecutionContext]) extends ActorSystemSetting
 
 object ActorSystem {
 
@@ -55,6 +91,11 @@ object ActorSystem {
    * Then it loads the default reference configuration using the ClassLoader.
    */
   def create(name: String): ActorSystem = apply(name)
+
+  /**
+   * Java API: Creates a new actor system with the specified name and settings
+   */
+  def create(name: String, settings: ActorSystemSettings): ActorSystem = apply(name, settings)
 
   /**
    * Creates a new ActorSystem with the specified name, and the specified Config, then
@@ -109,6 +150,18 @@ object ActorSystem {
   def apply(name: String): ActorSystem = apply(name, None, None, None)
 
   /**
+   * Scala API: Creates a new actor system with the specified name and settings
+   */
+  def apply(name: String, settings: ActorSystemSettings): ActorSystem = {
+    val bootstrapSettings = settings.get[ActorSystemBootstrapSettings]
+    val cl = bootstrapSettings.flatMap(_.classLoader).getOrElse(findClassLoader())
+    val appConfig = bootstrapSettings.flatMap(_.config).getOrElse(ConfigFactory.load(cl))
+    val defaultEC = bootstrapSettings.flatMap(_.defaultExecutionContext)
+
+    new ActorSystemImpl(name, appConfig, cl, defaultEC, None, settings).start()
+  }
+
+  /**
    * Creates a new ActorSystem with the specified name, and the specified Config, then
    * obtains the current ClassLoader by first inspecting the current threads' getContextClassLoader,
    * then tries to walk the stack to find the callers class loader, then falls back to the ClassLoader
@@ -140,12 +193,8 @@ object ActorSystem {
     name:                    String,
     config:                  Option[Config]           = None,
     classLoader:             Option[ClassLoader]      = None,
-    defaultExecutionContext: Option[ExecutionContext] = None,
-    actorSystemSettings:     ActorSystemSettings      = ActorSystemSettings.empty): ActorSystem = {
-    val cl = classLoader.getOrElse(findClassLoader())
-    val appConfig = config.getOrElse(ConfigFactory.load(cl))
-    new ActorSystemImpl(name, appConfig, cl, defaultExecutionContext, None, actorSystemSettings).start()
-  }
+    defaultExecutionContext: Option[ExecutionContext] = None): ActorSystem =
+    apply(name, ActorSystemSettings(ActorSystemBootstrapSettings.apply(classLoader, config, defaultExecutionContext)))
 
   /**
    * Settings are the overall ActorSystem Settings which also provides a convenient access to the Config object.

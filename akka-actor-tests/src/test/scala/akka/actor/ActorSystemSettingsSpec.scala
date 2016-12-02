@@ -47,7 +47,7 @@ class ActorSystemSettingsSpec extends WordSpec with Matchers {
       var system: ActorSystem = null
       try {
         val setting = DummySetting("Tad Moore")
-        system = ActorSystem("name", actorSystemSettings = ActorSystemSettings(setting))
+        system = ActorSystem("name", ActorSystemSettings(setting))
 
         system.asInstanceOf[ExtendedActorSystem]
           .actorSystemSettings
