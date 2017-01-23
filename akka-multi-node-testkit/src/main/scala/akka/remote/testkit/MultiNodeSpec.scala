@@ -232,8 +232,15 @@ object MultiNodeSpec {
     ConfigFactory.parseMap(map.asJava)
   }
 
-  private def getCallerName(clazz: Class[_]): String = {
-    val s = Thread.currentThread.getStackTrace map (_.getClassName) drop 1 dropWhile (_ matches ".*MultiNodeSpec.?$")
+  /**
+   * @param ignore One or more regexes that are ignored in the stack trace
+   */
+  private[akka] def getCallerName(clazz: Class[_], ignore: String*): String = {
+    val s = Thread.currentThread
+      .getStackTrace
+      .map(_.getClassName)
+      .drop(1)
+      .dropWhile(entry ⇒ ignore.exists(entry.matches))
     val reduced = s.lastIndexWhere(_ == clazz.getName) match {
       case -1 ⇒ s
       case z  ⇒ s drop (z + 1)
@@ -264,7 +271,7 @@ abstract class MultiNodeSpec(val myself: RoleName, _system: ActorSystem, _roles:
     this(config.myself, actorSystemCreator(ConfigFactory.load(config.config)), config.roles, config.deployments)
 
   def this(config: MultiNodeConfig) =
-    this(config, config ⇒ ActorSystem(MultiNodeSpec.getCallerName(classOf[MultiNodeSpec]), config))
+    this(config, config ⇒ ActorSystem(MultiNodeSpec.getCallerName(classOf[MultiNodeSpec], ".*MultiNodeSpec.?$"), config))
 
   val log: LoggingAdapter = Logging(system, this.getClass)
 

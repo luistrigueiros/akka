@@ -5,9 +5,10 @@ package akka.remote
 
 import java.util.UUID
 
+import akka.actor.ActorSystem
 import akka.remote.testkit.{ FlightRecordingSupport, MultiNodeConfig, MultiNodeSpec, STMultiNodeSpec }
 import akka.testkit.{ DefaultTimeout, ImplicitSender }
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ Config, ConfigFactory }
 import org.scalatest.{ Outcome, Suite }
 
 object RemotingMultiNodeSpec {
@@ -24,8 +25,16 @@ object RemotingMultiNodeSpec {
 
 }
 
-abstract class RemotingMultiNodeSpec(config: MultiNodeConfig) extends MultiNodeSpec(config)
-  with Suite
+abstract class RemotingMultiNodeSpec(config: MultiNodeConfig)
+  extends MultiNodeSpec(
+    config, { conf: Config ⇒
+      ActorSystem(
+        MultiNodeSpec.getCallerName(
+          classOf[RemotingMultiNodeSpec],
+          ".*MultiNodeSpec.?$", ".*RemotingMultiNodeSpec.?$"),
+        conf)
+    }
+  ) with Suite
   with STMultiNodeSpec
   with FlightRecordingSupport
   with ImplicitSender
