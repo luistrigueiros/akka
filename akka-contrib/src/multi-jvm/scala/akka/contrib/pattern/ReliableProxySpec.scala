@@ -30,6 +30,12 @@ object ReliableProxySpec extends MultiNodeConfig {
     """))
 
   testTransport(on = true)
+
+  private def targetProps(testActor: ActorRef) = Props(new Actor {
+    def receive = {
+      case x ⇒ testActor ! x
+    }
+  })
 }
 
 class ReliableProxyMultiJvmNode1 extends ReliableProxySpec
@@ -57,11 +63,7 @@ class ReliableProxySpec extends MultiNodeSpec(ReliableProxySpec) with STMultiNod
   }
 
   def startTarget(): Unit = {
-    target = system.actorOf(Props(new Actor {
-      def receive = {
-        case x ⇒ testActor ! x
-      }
-    }).withDeploy(Deploy.local), "echo")
+    target = system.actorOf(targetProps(testActor).withDeploy(Deploy.local), "echo")
   }
 
   def stopProxy(): Unit = {

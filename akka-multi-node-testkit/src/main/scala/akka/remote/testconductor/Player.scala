@@ -4,21 +4,44 @@
 package akka.remote.testconductor
 
 import java.util.concurrent.TimeoutException
+
 import akka.actor._
 import akka.remote.testconductor.RemoteConnection.getAddrString
+
 import scala.collection.immutable
-import scala.concurrent.{ ExecutionContext, Await, Future }
+import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import scala.reflect.classTag
 import akka.util.Timeout
-import org.jboss.netty.channel.{ Channel, SimpleChannelUpstreamHandler, ChannelHandlerContext, ChannelStateEvent, MessageEvent, WriteCompletionEvent, ExceptionEvent }
-import akka.pattern.{ ask, AskTimeoutException }
-import akka.event.{ LoggingAdapter, Logging }
-import java.net.{ InetSocketAddress, ConnectException }
-import akka.remote.transport.ThrottlerTransportAdapter.{ SetThrottle, TokenBucket, Blackhole, Unthrottled }
-import akka.dispatch.{ UnboundedMessageQueueSemantics, RequiresMessageQueue }
+import org.jboss.netty.channel.{ Channel, ChannelHandlerContext, ChannelStateEvent, ExceptionEvent, MessageEvent, SimpleChannelUpstreamHandler, WriteCompletionEvent }
+import akka.pattern.{ AskTimeoutException, ask }
+import akka.event.{ Logging, LoggingAdapter }
+import java.net.{ ConnectException, InetSocketAddress }
 
+import akka.remote.transport.ThrottlerTransportAdapter.{ Blackhole, SetThrottle, TokenBucket, Unthrottled }
+import akka.dispatch.{ RequiresMessageQueue, UnboundedMessageQueueSemantics }
+
+object Player {
+  import ClientFSM._
+  import akka.actor.FSM._
+
+  private def starterProps = Props(new Actor with RequiresMessageQueue[UnboundedMessageQueueSemantics] {
+    var waiting: ActorRef = _
+    def receive = {
+      case fsm: ActorRef ⇒
+        waiting = sender(); fsm ! SubscribeTransitionCallBack(self)
+      case Transition(_, f: ClientFSM.State, t: ClientFSM.State) if f == Connecting && t == AwaitDone ⇒ // step 1, not there yet // // SI-5900 workaround
+      case Transition(_, f: ClientFSM.State, t: ClientFSM.State) if f == AwaitDone && t == Connected ⇒ // SI-5900 workaround
+        waiting ! Done; context stop self
+      case t: Transition[_] ⇒
+        waiting ! Status.Failure(new RuntimeException("unexpected transition: " + t)); context stop self
+      case CurrentState(_, s: ClientFSM.State) if s == Connected ⇒ // SI-5900 workaround
+        waiting ! Done; context stop self
+      case _: CurrentState[_] ⇒
+    }
+  })
+}
 /**
  * The Player is the client component of the
  * [[akka.remote.testconductor.TestConductorExt]] extension. It registers with
@@ -45,28 +68,11 @@ trait Player { this: TestConductorExt ⇒
    * set in [[akka.remote.testconductor.Conductor]]`.startController()`.
    */
   def startClient(name: RoleName, controllerAddr: InetSocketAddress): Future[Done] = {
-    import ClientFSM._
-    import akka.actor.FSM._
     import Settings.BarrierTimeout
 
     if (_client ne null) throw new IllegalStateException("TestConductorClient already started")
     _client = system.actorOf(Props(classOf[ClientFSM], name, controllerAddr), "TestConductorClient")
-    val a = system.actorOf(Props(new Actor with RequiresMessageQueue[UnboundedMessageQueueSemantics] {
-      var waiting: ActorRef = _
-      def receive = {
-        case fsm: ActorRef ⇒
-          waiting = sender(); fsm ! SubscribeTransitionCallBack(self)
-        case Transition(_, f: ClientFSM.State, t: ClientFSM.State) if (f == Connecting && t == AwaitDone) ⇒ // step 1, not there yet // // SI-5900 workaround
-        case Transition(_, f: ClientFSM.State, t: ClientFSM.State) if (f == AwaitDone && t == Connected) ⇒ // SI-5900 workaround
-          waiting ! Done; context stop self
-        case t: Transition[_] ⇒
-          waiting ! Status.Failure(new RuntimeException("unexpected transition: " + t)); context stop self
-        case CurrentState(_, s: ClientFSM.State) if (s == Connected) ⇒ // SI-5900 workaround
-          waiting ! Done; context stop self
-        case _: CurrentState[_] ⇒
-      }
-    }))
-
+    val a = system.actorOf(Player.starterProps)
     a ? client mapTo classTag[Done]
   }
 

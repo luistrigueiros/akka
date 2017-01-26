@@ -38,6 +38,7 @@ object ClusterConsistentHashingRouterMultiJvmSpec extends MultiNodeConfig {
 
   commonConfig(debugConfig(on = false).
     withFallback(ConfigFactory.parseString(s"""
+      akka.actor.serialize-creators = on
       common-router-settings = {
         router = consistent-hashing-pool
         cluster {

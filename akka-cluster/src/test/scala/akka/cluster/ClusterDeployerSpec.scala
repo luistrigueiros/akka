@@ -15,6 +15,7 @@ import akka.cluster.routing.ClusterRouterGroupSettings
 object ClusterDeployerSpec {
   val deployerConf = ConfigFactory.parseString("""
       akka.actor.provider = "cluster"
+      akka.actor.serialize-creators = on
       akka.actor.deployment {
         /user/service1 {
           router = round-robin-pool

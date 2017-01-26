@@ -23,6 +23,7 @@ object ClusterRouterSupervisorSpec {
 
 class ClusterRouterSupervisorSpec extends AkkaSpec("""
   akka.actor.provider = "cluster"
+  |akka.actor.serialize-creators = on
   akka.remote.netty.tcp.port = 0
   akka.remote.artery.canonical.port = 0
 """) {

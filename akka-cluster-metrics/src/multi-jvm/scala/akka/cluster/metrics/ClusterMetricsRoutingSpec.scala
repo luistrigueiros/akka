@@ -66,6 +66,7 @@ object AdaptiveLoadBalancingRouterConfig extends MultiNodeConfig {
   }
 
   commonConfig(debugConfig(on = false).withFallback(ConfigFactory.parseString("""
+      akka.actor.serialize-creators = on
       # Enable metrics estension.
       akka.extensions=["akka.cluster.metrics.ClusterMetricsExtension"]
 
