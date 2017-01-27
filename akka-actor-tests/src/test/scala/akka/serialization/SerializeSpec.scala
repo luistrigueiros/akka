@@ -5,12 +5,14 @@
 package akka.serialization
 
 import language.postfixOps
-import akka.testkit.{ AkkaSpec, EventFilter }
+import akka.testkit.{ AkkaSpec, EventFilter, TestKit }
 import akka.actor._
 import akka.dispatch.sysmsg._
 import java.io._
+
 import scala.concurrent.Await
 import akka.util.Timeout
+
 import scala.concurrent.duration._
 import scala.beans.BeanInfo
 import com.typesafe.config._
@@ -18,6 +20,7 @@ import akka.pattern.ask
 import org.apache.commons.codec.binary.Hex.encodeHex
 import java.nio.ByteOrder
 import java.nio.ByteBuffer
+
 import akka.actor.NoSerializationVerificationNeeded
 import test.akka.serialization.NoVerification
 
@@ -66,6 +69,8 @@ object SerializationTests {
   class ExtendedPlainMessage extends PlainMessage
 
   class Both(s: String) extends SimpleMessage(s) with Serializable
+
+  class JavaSerializable(s: String) extends Serializable
 
   trait A
   trait B
@@ -217,6 +222,39 @@ class SerializeSpec extends AkkaSpec(SerializationTests.serializeConf) {
 
     "resolve serializer for message extending class with with binding" in {
       ser.serializerFor(classOf[ExtendedPlainMessage]).getClass should ===(classOf[TestSerializer])
+    }
+
+    "not allow deserialization for serializers that has got no bindings" in {
+      val system = ActorSystem("Serialization-nobinding", ConfigFactory.parseString("""
+        akka {
+          actor {
+            serialize-messages = off
+            # make sure we unbind/override all bindings for the Java serializer
+            serialization-bindings {
+              "java.io.Serializable" = none
+              "akka.testkit.JavaSerializable" = none
+            }
+            enable-additional-serialization-bindings = on
+          }
+        }
+      """))
+
+      try {
+
+        val javaSerializer = new JavaSerializer(system.asInstanceOf[ExtendedActorSystem])
+        val data = javaSerializer.toBinary(new JavaSerializable("whatever"))
+
+        val ser = SerializationExtension(system)
+        println(ser.serializerByIdentity)
+        println(ser.bindings)
+
+        val result = ser.deserialize(data, javaSerializer.identifier, "")
+        result.isFailure shouldBe true
+
+      } finally {
+        TestKit.shutdownActorSystem(system)
+      }
+
     }
 
     "give warning for message with several bindings" in {
