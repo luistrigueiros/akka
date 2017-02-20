@@ -3,12 +3,49 @@
  */
 package akka.actor
 
+import java.lang.Thread.UncaughtExceptionHandler
+
 import akka.testkit.TestProbe
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ Config, ConfigFactory }
 import org.openjdk.jmh.annotations._
+
 import scala.concurrent.duration._
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ ExecutorService, ThreadFactory, TimeUnit }
+
+import akka.dispatch._
+
 import scala.concurrent.Await
+
+class MonixFJPExecutorConfigurator(config: Config, prerequisites: DispatcherPrerequisites) extends ExecutorServiceConfigurator(config, prerequisites) {
+  override def createExecutorServiceFactory(id: String, threadFactory: ThreadFactory): ExecutorServiceFactory = {
+    new ExecutorServiceFactory {
+
+      val parallelism: Int = ThreadPoolConfig.scaledPoolSize(
+        config.getInt("fork-join-executor.parallelism-min"),
+        config.getDouble("fork-join-executor.parallelism-factor"),
+        config.getInt("fork-join-executor.parallelism-max")
+      )
+
+      val asyncMode: Boolean = config.getString("fork-join-executor.task-peeking-mode") match {
+        case "FIFO" ⇒ true
+        case "LIFO" ⇒ false
+        case unsupported ⇒ throw new IllegalArgumentException("Cannot instantiate MonixFJPExecutorConfigurator. " +
+          """"task-peeking-mode" in "fork-join-executor" section could only set to "FIFO" or "LIFO".""")
+      }
+
+      override def createExecutorService: ExecutorService = {
+        val tf = new monix.forkJoin.DynamicWorkerThreadFactory("monix-fjp-dynamic", 256, new UncaughtExceptionHandler {
+          override def uncaughtException(t: Thread, e: Throwable) = {
+            println(e.getMessage)
+            e.fillInStackTrace()
+          }
+        }, true)
+
+        new monix.forkJoin.AdaptedForkJoinPool(parallelism, tf, MonitorableThreadFactory.doNothing, asyncMode)
+      }
+    }
+  }
+}
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -35,6 +72,7 @@ class ForkJoinActorBenchmark {
         |   actor {
         |     default-dispatcher {
         |       executor = "fork-join-executor"
+        |       # executor = "akka.actor.MonixFJPExecutorConfigurator"
         |       fork-join-executor {
         |         parallelism-min = 1
         |         parallelism-factor = $threads
@@ -57,7 +95,7 @@ class ForkJoinActorBenchmark {
   @Benchmark
   @Measurement(timeUnit = TimeUnit.MILLISECONDS)
   @OperationsPerInvocation(messages)
-  def pingPong(): Unit = {
+  def pingPongOnePair(): Unit = {
     val ping = system.actorOf(Props[ForkJoinActorBenchmark.PingPong])
     val pong = system.actorOf(Props[ForkJoinActorBenchmark.PingPong])
 

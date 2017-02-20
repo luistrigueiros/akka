@@ -9,3 +9,5 @@ AkkaBuild.defaultSettings
 AkkaBuild.dontPublishSettings
 AkkaBuild.dontPublishDocsSettings
 Dependencies.benchJmh
+
+libraryDependencies += "io.monix" %% "monix-forkjoin" % "1.0"
