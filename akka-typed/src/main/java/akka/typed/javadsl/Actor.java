@@ -200,6 +200,10 @@ public abstract class Actor {
     return new Stateful<T>(unhandledFun(), message);
   }
 
+  static public <T> StatefulBehaviorBuilder<T> statefulBuilder(Class<T> messageSuperclass) {
+    return new StatefulBehaviorBuilder<T>(messageSuperclass);
+  }
+
   /**
    * Construct an actor behavior that can react to incoming messages but not to
    * lifecycle signals. After spawning this actor from another actor (or as the

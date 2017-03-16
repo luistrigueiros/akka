@@ -4,13 +4,22 @@
 
 package akka.japi.pf
 
-import FI.{ UnitApply, Apply, Predicate }
+import FI.{ Apply, Apply2, Predicate, UnitApply }
+import akka.annotation.InternalApi
 
-private[pf] object CaseStatement {
+/**
+ * Internal API
+ */
+@InternalApi
+private[akka] object CaseStatement {
   def empty[F, T](): PartialFunction[F, T] = PartialFunction.empty
 }
 
-private[pf] class CaseStatement[-F, +P, T](predicate: Predicate, apply: Apply[P, T])
+/**
+ * Internal API
+ */
+@InternalApi
+private[akka] class CaseStatement[-F, +P, T](predicate: Predicate, apply: Apply[P, T])
   extends PartialFunction[F, T] {
 
   override def isDefinedAt(o: F) = predicate.defined(o)
@@ -18,7 +27,11 @@ private[pf] class CaseStatement[-F, +P, T](predicate: Predicate, apply: Apply[P,
   override def apply(o: F) = apply.apply(o.asInstanceOf[P])
 }
 
-private[pf] class UnitCaseStatement[F, P](predicate: Predicate, apply: UnitApply[P])
+/**
+ * Internal API
+ */
+@InternalApi
+private[akka] class UnitCaseStatement[F, P](predicate: Predicate, apply: UnitApply[P])
   extends PartialFunction[F, Unit] {
 
   override def isDefinedAt(o: F) = predicate.defined(o)

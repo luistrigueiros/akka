@@ -170,6 +170,12 @@ object ActorSystem {
   }
 
   /**
+   * Java API:
+   */
+  def create[T](name: String, guardianBehavior: Behavior[T]): ActorSystem[T] =
+    apply(name, guardianBehavior)
+
+  /**
    * Create an ActorSystem based on the untyped [[akka.actor.ActorSystem]]
    * which runs Akka Typed [[Behavior]] on an emulation layer. In this
    * system typed and untyped actors can coexist.

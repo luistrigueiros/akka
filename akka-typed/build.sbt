@@ -6,6 +6,8 @@ Formatting.formatSettings
 
 disablePlugins(MimaPlugin)
 
+javacOptions += "-Xdiags:verbose"
+
 initialCommands := """
   import akka.typed._
   import ScalaDSL._

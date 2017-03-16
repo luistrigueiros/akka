@@ -36,6 +36,7 @@ public final class FI {
    * @param <I2> the second input type, that this Apply will be applied to
    * @param <R> the return type, that the results of the application will have
    */
+  @FunctionalInterface
   public static interface Apply2<I1, I2, R> {
     /**
      * The application to perform.
@@ -160,7 +161,7 @@ public final class FI {
   /**
    * Package scoped functional interface for a predicate. Used internally to match against arbitrary types.
    */
-  static interface Predicate {
+  public interface Predicate {
     /**
      * The predicate to evaluate.
      *
