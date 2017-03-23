@@ -83,6 +83,7 @@ public class JavaAlarmSample {
           return disabledAlarm(message.newPassword);
         } else {
           System.out.println("Wrong password, password not changed");
+
           return same();
         }
       })

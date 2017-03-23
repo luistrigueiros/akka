@@ -1,13 +1,13 @@
 /*
  * Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
  */
-package akka.typed
+package akka.typed.scaladsl
 
-import akka.typed.scaladsl.Actor
+import akka.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 
-import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 object ScalaAlarmSample extends App {
 
