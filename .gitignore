@@ -28,6 +28,7 @@
 .project
 .sbtserver
 .sbtserver.lock
+.sbtopts
 .scala_dependencies
 .scalastyle
 .settings

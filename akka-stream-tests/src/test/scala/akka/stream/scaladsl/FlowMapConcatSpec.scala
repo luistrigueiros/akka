@@ -4,9 +4,11 @@
 package akka.stream.scaladsl
 
 import akka.stream.testkit.scaladsl.TestSink
-import akka.stream.{ Supervision, ActorAttributes, ActorMaterializer, ActorMaterializerSettings }
+import akka.stream.{ ActorAttributes, ActorMaterializer, ActorMaterializerSettings, Supervision }
 import akka.stream.testkit.Utils._
 import akka.stream.testkit._
+import org.scalatest.concurrent.PatienceConfiguration
+
 import scala.util.control.NoStackTrace
 
 class FlowMapConcatSpec extends StreamSpec with ScriptedTest {
@@ -46,6 +48,21 @@ class FlowMapConcatSpec extends StreamSpec with ScriptedTest {
         .runWith(TestSink.probe[Int])
         .request(4).expectNext(1, 2, 4, 5)
         .expectComplete()
+    }
+
+    "not deadlock" in assertAllStagesStopped {
+      val noFusingMaterializer =
+        ActorMaterializer(ActorMaterializerSettings(system)
+          .withAutoFusing(false)
+          .withInputBuffer(1, 1)
+        )
+
+      val sink = Flow[Int]
+        .via(Flow[Int].map(_ + 1).mapConcat(x ⇒ List(x)))
+        .toMat(Sink.ignore)(Keep.right)
+
+      import scala.concurrent.duration._
+      Source.empty[Int].runWith(sink)(noFusingMaterializer).futureValue(PatienceConfiguration.Timeout(10.seconds))
     }
 
   }
