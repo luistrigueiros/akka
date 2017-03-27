@@ -5,9 +5,10 @@
         </a>
 
         <ul class="desktopHeaderNav desktop-only">
-            <li><a href="#">News</a></li>
-            <li><a href="/">Documentation</a></li>
-            <li><a href="#">Community</a></li>
+            <!-- TODO are these really the right links (compared to the new site?) -->
+            <li><a href="http://blog.akka.io">News</a></li>
+            <li><a href="http://akka.io/docs">Documentation</a></li>
+            <li><a href="http://akka.io/community">Community</a></li>
         </ul>
 
         <ul class="mobileHeaderNavButton">
@@ -16,9 +17,12 @@
 
         <nav id="mobileHeaderNav" class="hidden">
             <ul>
-                <li><a href="#">News</a></li>
-                <li><a href="/">Documentation</a></li>
-                <li><a href="#">Community</a></li>
+                <!-- TODO are these really the right links (compared to the new site?)
+                     TODO toc-link also, this is for mobile view
+                -->
+                <li><a href="http://blog.akka.io">News</a></li>
+                <li><a href="http://akka.io/docs">Documentation</a></li>
+                <li><a href="http://akka.io/community">Community</a></li>
             </ul>
         </nav>
     </div>
