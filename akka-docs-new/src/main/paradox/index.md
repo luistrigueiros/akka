@@ -1,3 +1,7 @@
+---
+layout: tableOfContentsPage
+---
+
 # Akka Documentation
 
 @@@ index

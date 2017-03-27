@@ -13,5 +13,5 @@ unmanagedSourceDirectories in ScalariformKeys.format in Test <<= unmanagedSource
 enablePlugins(ScaladocNoVerificationOfDiagrams)
 disablePlugins(MimaPlugin)
 enablePlugins(ParadoxPlugin)
-
-paradoxTheme := Some(builtinParadoxTheme("generic"))
+// use local Akka theme
+paradoxTheme := None

@@ -39,3 +39,5 @@ addSbtPlugin("io.spray" % "sbt-boilerplate" % "0.6.0")
 addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.1.8")
 
 addSbtPlugin("com.lightbend.paradox" % "sbt-paradox" % "0.2.9")
+
+libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.25"
