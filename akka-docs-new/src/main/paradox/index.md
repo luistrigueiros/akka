@@ -1,12 +1,10 @@
----
-layout: tableOfContentsPage
----
+# Contents
 
-# Akka Documentation
+@@toc { depth=1 }
 
 @@@ index
 
-* [Beginners Guide](guide/index.md)
-* [Reference](reference/index.md)
+* [java](java.md)
+* [scala](scala.md)
 
 @@@

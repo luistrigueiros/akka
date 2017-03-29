@@ -1,9 +1,0 @@
----
-layout: tableOfContentsPage
----
-
-# Reference 
-
-@@@ index
-
-@@@
