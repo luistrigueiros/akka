@@ -8,3 +8,10 @@
 <script src="$page.base$js/stickySearch.js"></script>
 <script src="$page.base$js/tabPanel.js"></script>
 <script src="$page.base$js/refContainer.js"></script>
+<!-- syntax highlighting -->
+<link rel="stylesheet" type="text/css" href="$page.base$css/prettify.css">
+<script type="text/javascript" src="$page.base$js/prettify.js"></script>
+<script type="text/javascript" src="$page.base$js/lang-scala.js"></script>
+<script type="text/javascript">jQuery(function () {
+    PR.prettyPrint()
+});</script>

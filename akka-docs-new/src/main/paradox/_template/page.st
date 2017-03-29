@@ -11,12 +11,12 @@
     <script src="$page.base$js/all.js"></script>
 </head>
 
-<body class="documentationActors">
+<body class="documentation">
 $pageHeader()$
 
 <section class="wrapper">
     <div class="docuRow">
-        <div class="twocol sideBar desktop-only">
+        <div class="twocol sideBar desktop-only navigation">
             <!-- TODO needs more features here -->
             $page.navigation$
             <!--           <ul class="sideBarTopLevel">

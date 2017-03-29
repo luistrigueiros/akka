@@ -11,7 +11,7 @@
     <script src="$page.base$js/all.js"></script>
 </head>
 
-<body class="documentationActors">
+<body class="documentation">
 $pageHeader()$
 <section class="wrapper">
     <div class="row">
