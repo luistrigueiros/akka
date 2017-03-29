@@ -5,12 +5,14 @@ package docs.actor
 
 import java.lang.String.{ valueOf => println }
 
+//#imports
 import akka.actor.{ ActorContext, ActorRef, TypedActor, TypedProps }
 import akka.routing.RoundRobinGroup
 import akka.testkit._
 
 import scala.concurrent.{ Future, Await }
 import scala.concurrent.duration._
+//#imports
 
 //Mr funny man avoids printing to stdout AND keeping docs alright
 import java.lang.String.{ valueOf => println }

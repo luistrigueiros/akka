@@ -41,9 +41,4 @@ These are the current complete modules marked as **may change**:
 
 Another reason for marking a module as "may change" is that it's too early
 to tell if the module has a maintainer that can take the responsibility
-of the module over time. These modules live in the ``akka-contrib`` subproject:
-
-.. toctree::
-   :maxdepth: 1
-
-   ../contrib/index
+of the module over time. These modules live in the ``akka-contrib`` subproject

@@ -1,7 +1,9 @@
 package docs.camel
 
+//#imports
 import akka.actor.{ Props, ActorSystem }
 import akka.camel.CamelExtension
+//#imports
 
 import language.postfixOps
 import akka.util.Timeout

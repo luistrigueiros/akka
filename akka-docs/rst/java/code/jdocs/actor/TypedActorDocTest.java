@@ -25,7 +25,6 @@ import akka.routing.RoundRobinGroup;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
-//#imports
 public class TypedActorDocTest extends AbstractJavaTest {
     Object someReference = null;
     ActorSystem system = null;
@@ -198,7 +197,7 @@ public class TypedActorDocTest extends AbstractJavaTest {
     }
   }
 
-  //#typed-router-types-1
+  //#typed-router-types
   interface HasName {
     String name();
   }
