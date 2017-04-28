@@ -438,7 +438,7 @@ import scala.util.control.NonFatal
 /**
  * INTERNAL API
  */
-@InternalApi private[akka] final object EmptySource extends GraphStage[SourceShape[Nothing]] {
+@InternalApi private[akka] object EmptySource extends GraphStage[SourceShape[Nothing]] {
   val out = Outlet[Nothing]("EmptySource.out")
   override val shape = SourceShape(out)
 
@@ -455,3 +455,87 @@ import scala.util.control.NonFatal
   override def toString = "EmptySource"
 }
 
+/**
+ * INTERNAL API
+ */
+@InternalApi private[akka] object MaybeSource extends GraphStageWithMaterializedValue[SourceShape[AnyRef], Promise[Option[AnyRef]]] {
+  val out = Outlet[AnyRef]("MaybeSource.out")
+  override val shape = SourceShape(out)
+
+  override protected def initialAttributes = DefaultAttributes.maybeSource
+
+  override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Promise[Option[AnyRef]]) = {
+    import scala.util.{ Success ⇒ ScalaSuccess, Failure ⇒ ScalaFailure }
+    val promise = Promise[Option[AnyRef]]()
+    val logic = new GraphStageLogic(shape) with OutHandler {
+      private var arrivedEarly: OptionVal[AnyRef] = OptionVal.None
+
+      override def preStart(): Unit = {
+        promise.future.value match {
+          case Some(value) ⇒ handleCompletion(value)
+          case None        ⇒ promise.future.onComplete(getAsyncCallback(handleCompletion).invoke)(ExecutionContexts.sameThreadExecutionContext)
+        }
+      }
+
+      override def onPull(): Unit = arrivedEarly match {
+        case OptionVal.Some(value) ⇒
+          push(out, value)
+          completeStage()
+        case OptionVal.None ⇒
+      }
+
+      private def handleCompletion(elem: Try[Option[AnyRef]]): Unit = {
+        elem match {
+          case ScalaSuccess(None) ⇒
+            completeStage()
+          case ScalaSuccess(Some(value)) ⇒
+            if (isAvailable(out)) {
+              push(out, value)
+              completeStage()
+            } else {
+              arrivedEarly = OptionVal.Some(value)
+            }
+          case ScalaFailure(ex) ⇒
+            failStage(ex)
+        }
+      }
+
+      override def onDownstreamFinish(): Unit = {
+        promise.tryComplete(ScalaSuccess(None))
+      }
+
+      override def postStop(): Unit = {
+        if (!promise.isCompleted)
+          promise.tryFailure(new AbruptStageTerminationException(this))
+      }
+
+      setHandler(out, this)
+
+    }
+    (logic, promise)
+  }
+
+  override def toString = "MaybeSource"
+}
+
+/**
+ * INTERNAL API
+ */
+@InternalApi private[akka] final class FailedSource[T](failure: Throwable) extends GraphStage[SourceShape[T]] {
+  val out = Outlet[T]("FailedSource.out")
+  override val shape = SourceShape(out)
+
+  override protected def initialAttributes: Attributes = DefaultAttributes.failedSource
+
+  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = new GraphStageLogic(shape) with OutHandler {
+
+    override def onPull(): Unit = ()
+
+    override def preStart(): Unit = {
+      failStage(failure)
+    }
+    setHandler(out, this)
+  }
+
+  override def toString = s"FailedSource(${failure.getClass.getName})"
+}
