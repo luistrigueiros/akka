@@ -177,7 +177,7 @@ class Cluster(val system: ExtendedActorSystem) extends Extension {
 
   private[cluster] val readView: ClusterReadView = new ClusterReadView(this)
 
-  system.registerOnTermination(shutdown())
+  system.whenTerminated.onComplete(_ ⇒ shutdown())(scala.concurrent.ExecutionContext.global)
 
   if (JmxEnabled)
     clusterJmx = {

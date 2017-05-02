@@ -48,8 +48,7 @@ class AkkaSpecSpec extends WordSpec with Matchers {
       val system = ActorSystem("AkkaSpec2", AkkaSpec.testConf)
       val spec = new AkkaSpec(system) {}
       val latch = new TestLatch(1)(system)
-      system.registerOnTermination(latch.countDown())
-
+      system.whenTerminated.onComplete(_ ⇒ latch.countDown())(scala.concurrent.ExecutionContext.global)
       system.actorSelection("/") ! PoisonPill
 
       Await.ready(latch, 2 seconds)
@@ -82,7 +81,7 @@ class AkkaSpecSpec extends WordSpec with Matchers {
         }
 
         val latch = new TestLatch(1)(system)
-        system.registerOnTermination(latch.countDown())
+        system.whenTerminated.onComplete(_ ⇒ latch.countDown())(scala.concurrent.ExecutionContext.global)
         TestKit.shutdownActorSystem(system)
         Await.ready(latch, 2 seconds)
         Await.result(davyJones ? "Die!", timeout.duration) should ===("finally gone")

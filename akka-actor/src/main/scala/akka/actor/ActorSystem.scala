@@ -512,6 +512,7 @@ abstract class ActorSystem extends ActorRefFactory {
    *
    * Scala API
    */
+  @deprecated("Use whenTerminated or coordinated-shutdown hooks instead.", "2.5.x")
   def registerOnTermination[T](code: ⇒ T): Unit
 
   /**
@@ -523,6 +524,7 @@ abstract class ActorSystem extends ActorRefFactory {
    *
    * Throws a RejectedExecutionException if the System has already shut down or if shutdown has been initiated.
    */
+  @deprecated("Use whenTerminated or coordinated-shutdown hooks instead.", "2.5.x")
   def registerOnTermination(code: Runnable): Unit
 
   /**
@@ -778,7 +780,6 @@ private[akka] class ActorSystemImpl(
   def /(path: Iterable[String]): ActorPath = guardian.path / path
 
   private lazy val _start: this.type = try {
-    registerOnTermination(stopScheduler())
     // the provider is expected to start default loggers, LocalActorRefProvider does this
     provider.init(this)
     if (settings.LogDeadLetters > 0)
@@ -800,6 +801,7 @@ private[akka] class ActorSystemImpl(
   override def terminate(): Future[Terminated] = {
     if (!settings.LogDeadLettersDuringShutdown) logDeadLetterListener foreach stop
     guardian.stop()
+    stopScheduler()
     whenTerminated
   }
 

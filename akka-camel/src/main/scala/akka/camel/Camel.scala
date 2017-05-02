@@ -132,7 +132,7 @@ object CamelExtension extends ExtensionId[Camel] with ExtensionIdProvider {
    */
   override def createExtension(system: ExtendedActorSystem): Camel = {
     val camel = new DefaultCamel(system).start()
-    system.registerOnTermination(camel.shutdown())
+    system.whenTerminated.onComplete(_ ⇒ camel.shutdown())(scala.concurrent.ExecutionContext.global)
     camel
   }
 
