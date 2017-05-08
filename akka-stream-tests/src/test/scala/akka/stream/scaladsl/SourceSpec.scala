@@ -114,6 +114,7 @@ class SourceSpec extends StreamSpec with DefaultTimeout {
       val promise = Source.maybe[Int].to(Sink.fromSubscriber(probe)).run()
 
       // external cancellation
+      probe.ensureSubscription()
       promise.trySuccess(None) shouldEqual true
       probe.expectComplete()
     }

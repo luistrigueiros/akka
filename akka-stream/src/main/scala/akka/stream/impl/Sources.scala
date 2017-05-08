@@ -468,12 +468,19 @@ import scala.util.control.NonFatal
     import scala.util.{ Success ⇒ ScalaSuccess, Failure ⇒ ScalaFailure }
     val promise = Promise[Option[AnyRef]]()
     val logic = new GraphStageLogic(shape) with OutHandler {
+
       private var arrivedEarly: OptionVal[AnyRef] = OptionVal.None
 
       override def preStart(): Unit = {
         promise.future.value match {
-          case Some(value) ⇒ handleCompletion(value)
-          case None        ⇒ promise.future.onComplete(getAsyncCallback(handleCompletion).invoke)(ExecutionContexts.sameThreadExecutionContext)
+          case Some(value) ⇒
+            // already completed, shortcut
+            handleCompletion(value)
+          case None ⇒
+            // callback on future completion
+            promise.future.onComplete(
+              getAsyncCallback(handleCompletion).invoke
+            )(ExecutionContexts.sameThreadExecutionContext)
         }
       }
 
