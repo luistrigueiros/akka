@@ -642,20 +642,22 @@ import scala.util.control.NonFatal
 
       val logicIndexes = logics.zipWithIndex.map { case (stage, idx) ⇒ stage → idx }.toMap
       for (connection ← connections) {
-        val inName = "N" + logicIndexes(connection.inOwner)
-        val outName = "N" + logicIndexes(connection.outOwner)
+        if (connection != null) {
+          val inName = "N" + logicIndexes(connection.inOwner)
+          val outName = "N" + logicIndexes(connection.outOwner)
 
-        builder.append(s"  $inName -> $outName ")
-        connection.portState match {
-          case InReady ⇒
-            builder.append("[label=shouldPull, color=blue];")
-          case OutReady ⇒
-            builder.append(s"[label=shouldPush, color=red];")
-          case x if (x | InClosed | OutClosed) == (InClosed | OutClosed) ⇒
-            builder.append("[style=dotted, label=closed, dir=both];")
-          case _ ⇒
+          builder.append(s"  $inName -> $outName ")
+          connection.portState match {
+            case InReady ⇒
+              builder.append("[label=shouldPull, color=blue];")
+            case OutReady ⇒
+              builder.append(s"[label=shouldPush, color=red];")
+            case x if (x | InClosed | OutClosed) == (InClosed | OutClosed) ⇒
+              builder.append("[style=dotted, label=closed, dir=both];")
+            case _ ⇒
+          }
+          builder.append("\n")
         }
-        builder.append("\n")
       }
 
       builder.append("}\n================================================================\n")
