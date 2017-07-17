@@ -7,7 +7,7 @@ import akka.stream.{ ActorMaterializer, KillSwitches, ThrottleMode }
 import akka.stream.testkit.{ StreamSpec, TestPublisher, TestSubscriber }
 import akka.stream.testkit.Utils.{ TE, assertAllStagesStopped }
 import akka.stream.testkit.scaladsl.{ TestSink, TestSource }
-import akka.testkit.EventFilter
+import akka.testkit.{ EventFilter, TestProbe }
 
 import scala.collection.immutable
 import scala.concurrent.Await
@@ -363,6 +363,24 @@ class HubSpec extends StreamSpec {
       a[TE] shouldBe thrownBy {
         Await.result(source.runWith(Sink.seq), 3.seconds)
       }
+    }
+
+    "handle a directly cancelled Sink" in assertAllStagesStopped {
+
+      val (sourceProbe, hub) = TestSource.probe[Int]
+        .toMat(BroadcastHub.sink(1))(Keep.both)
+        .run()
+
+      hub.runWith(Sink.cancelled)
+      val sinkProbe = hub.runWith(TestSink.probe[Int])
+
+      // racey here with the cancelled subscription but seems to fail consistently
+      sinkProbe.ensureSubscription()
+
+      sinkProbe.requestNext()
+
+      sourceProbe.sendNext(1)
+      sinkProbe.expectNext(1)
     }
 
   }
