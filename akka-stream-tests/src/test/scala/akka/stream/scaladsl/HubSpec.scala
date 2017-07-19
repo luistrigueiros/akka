@@ -366,21 +366,21 @@ class HubSpec extends StreamSpec {
     }
 
     "handle a directly cancelled Sink" in assertAllStagesStopped {
-
       val (sourceProbe, hub) = TestSource.probe[Int]
-        .toMat(BroadcastHub.sink(1))(Keep.both)
+        .toMat(BroadcastHub.sink(4))(Keep.both)
         .run()
 
-      hub.runWith(Sink.cancelled)
-      val sinkProbe = hub.runWith(TestSink.probe[Int])
+      val cancelling = hub.runWith(TestSink.probe[Int])
+      val movingAlong = hub.runWith(TestSink.probe[Int])
 
-      // racey here with the cancelled subscription but seems to fail consistently
-      sinkProbe.ensureSubscription()
+      cancelling.ensureSubscription()
+      movingAlong.ensureSubscription()
 
-      sinkProbe.requestNext()
+      cancelling.cancel()
 
+      movingAlong.requestNext()
       sourceProbe.sendNext(1)
-      sinkProbe.expectNext(1)
+      movingAlong.expectNext(1)
     }
 
   }
