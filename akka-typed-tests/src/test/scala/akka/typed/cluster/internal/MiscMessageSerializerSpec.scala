@@ -9,8 +9,20 @@ import akka.typed.TypedSpec.Create
 import akka.typed.internal.adapter.ActorSystemAdapter
 import akka.typed.scaladsl.Actor
 import akka.typed.scaladsl.AskPattern._
+import com.typesafe.config.ConfigFactory
 
-class MiscMessageSerializerSpec extends TypedSpec {
+object MiscMessageSerializerSpec {
+  def config = ConfigFactory.parseString(
+    """
+      akka.actor {
+        provider = cluster
+        serialize-messages = off
+        allow-java-serialization = true
+      }
+    """)
+}
+
+class MiscMessageSerializerSpec extends TypedSpec(MiscMessageSerializerSpec.config) {
 
   object `The typed MiscMessageSerializer` {
 

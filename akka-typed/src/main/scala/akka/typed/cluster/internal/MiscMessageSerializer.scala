@@ -18,18 +18,15 @@ class MiscMessageSerializer(val system: akka.actor.ExtendedActorSystem) extends 
   private val resolver = ActorRefResolver(system.toTyped)
 
   def manifest(o: AnyRef) = o match {
-    case ref: ActorRef[_]        ⇒ "a"
-    case ref: ActorRefAdapter[_] ⇒ "a"
+    case ref: ActorRef[_] ⇒ "a"
   }
 
   def toBinary(o: AnyRef) = o match {
-    case ref: ActorRef[_]        ⇒ resolver.toSerializationFormat(ref).getBytes(StandardCharsets.UTF_8)
-    case ref: ActorRefAdapter[_] ⇒ resolver.toSerializationFormat(ref).getBytes(StandardCharsets.UTF_8)
+    case ref: ActorRef[_] ⇒ resolver.toSerializationFormat(ref).getBytes(StandardCharsets.UTF_8)
   }
 
   def fromBinary(bytes: Array[Byte], manifest: String) = manifest match {
     case "a" ⇒ resolver.resolveActorRef(new String(bytes, StandardCharsets.UTF_8))
-
   }
 
 }
