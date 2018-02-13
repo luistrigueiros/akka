@@ -465,10 +465,8 @@ private abstract class RestartWithBackoffLogic[S <: Shape](
     sourceOut.setHandler(new OutHandler {
       override def onPull() = if (isAvailable(in)) {
         sourceOut.push(grab(in))
-      } else {
-        if (!hasBeenPulled(in)) {
-          pull(in)
-        }
+      } else if (!hasBeenPulled(in) && !isClosed(in)) {
+        pull(in)
       }
       override def onDownstreamFinish() = {
         if (finishing || maxRestartsReached() || onlyOnFailures) {
