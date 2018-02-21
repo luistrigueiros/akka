@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture
 import akka.annotation.InternalApi
 
 import scala.compat.java8.FutureConverters._
+import scala.reflect.ClassTag
 
 /** Java API */
 object Source {
@@ -494,6 +495,15 @@ final class Source[Out, Mat](delegate: scaladsl.Source[Out, Mat]) extends Graph[
    */
   def mapMaterializedValue[Mat2](f: function.Function[Mat, Mat2]): Source[Out, Mat2] =
     new Source(delegate.mapMaterializedValue(f.apply _))
+
+  /**
+   * Materializes this Source, immediately returning (1) its materialized value, and (2) a new Source
+   * that can be used to consume elements from the newly materialized Source.
+   */
+  def preMaterialize(materializer: Materializer): Pair[Mat @uncheckedVariance, Source[Out @uncheckedVariance, NotUsed]] = {
+    val (mat, src) = delegate.preMaterialize()(materializer)
+    Pair(mat, new Source(src))
+  }
 
   /**
    * Transform this [[Source]] by appending the given processing stages.
@@ -1306,6 +1316,24 @@ final class Source[Out, Mat](delegate: scaladsl.Source[Out, Mat]) extends Graph[
     new Source(delegate.collect(pf))
 
   /**
+   * Transform this stream by testing the type of each of the elements
+   * on which the element is an instance of the provided type as they pass through this processing step.
+   * Non-matching elements are filtered out.
+   *
+   * Adheres to the [[ActorAttributes.SupervisionStrategy]] attribute.
+   *
+   * '''Emits when''' the element is an instance of the provided type
+   *
+   * '''Backpressures when''' the element is an instance of the provided type and downstream backpressures
+   *
+   * '''Completes when''' upstream completes
+   *
+   * '''Cancels when''' downstream cancels
+   */
+  def collectType[T](clazz: Class[T]): javadsl.Source[T, Mat] =
+    new Source(delegate.collectType[T](ClassTag[T](clazz)))
+
+  /**
    * Chunk up this stream into groups of the given size, with the last group
    * possibly smaller than requested due to end-of-stream.
    *
@@ -1924,8 +1952,8 @@ final class Source[Out, Mat](delegate: scaladsl.Source[Out, Mat]) extends Graph[
    *
    * '''Cancels when''' downstream cancels or substream cancels
    */
-  def prefixAndTail(n: Int): javadsl.Source[akka.japi.Pair[java.util.List[Out @uncheckedVariance], javadsl.Source[Out @uncheckedVariance, NotUsed]], Mat] =
-    new Source(delegate.prefixAndTail(n).map { case (taken, tail) ⇒ akka.japi.Pair(taken.asJava, tail.asJava) })
+  def prefixAndTail(n: Int): javadsl.Source[Pair[java.util.List[Out @uncheckedVariance], javadsl.Source[Out @uncheckedVariance, NotUsed]], Mat] =
+    new Source(delegate.prefixAndTail(n).map { case (taken, tail) ⇒ Pair(taken.asJava, tail.asJava) })
 
   /**
    * This operation demultiplexes the incoming stream into separate output

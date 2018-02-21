@@ -10,6 +10,7 @@ import akka.japi.JavaPartialFunction;
 import akka.japi.Pair;
 import akka.japi.function.*;
 import akka.stream.*;
+import akka.stream.scaladsl.FlowSpec;
 import akka.util.ConstantFun;
 import akka.stream.javadsl.GraphDSL.Builder;
 import akka.stream.stage.*;
@@ -203,13 +204,13 @@ public class FlowTest extends StreamTest {
 
       public final Inlet<Integer> in = Inlet.create("in");
       public final Outlet<Integer> out = Outlet.create("out");
-  
+
       @Override
       public GraphStageLogic createLogic(Attributes inheritedAttributes) throws Exception {
         return new GraphStageLogic(shape()) {
           int sum = 0;
           int count = 0;
-          
+
           {
             setHandler(in, new AbstractInHandler() {
               @Override
@@ -222,7 +223,7 @@ public class FlowTest extends StreamTest {
                     } else {
                       emitMultiple(out, Arrays.asList(element, element).iterator());
                     }
-                
+
               }
             });
             setHandler(out, new AbstractOutHandler() {
@@ -234,14 +235,14 @@ public class FlowTest extends StreamTest {
           }
         };
       }
-  
+
       @Override
       public FlowShape<Integer, Integer> shape() {
         return FlowShape.of(in, out);
       }
                                                                             }
     );
-    Source.from(input).via(flow).runForeach((Procedure<Integer>) elem -> 
+    Source.from(input).via(flow).runForeach((Procedure<Integer>) elem ->
       probe.getRef().tell(elem, ActorRef.noSender()), materializer);
 
     probe.expectMsgEquals(0);
@@ -326,7 +327,7 @@ public class FlowTest extends StreamTest {
     return new GraphStage<FlowShape<T, T>>() {
       public final Inlet<T> in = Inlet.create("in");
       public final Outlet<T> out = Outlet.create("out");
-  
+
       @Override
       public GraphStageLogic createLogic(Attributes inheritedAttributes) throws Exception {
         return new GraphStageLogic(shape()) {
@@ -691,6 +692,16 @@ public class FlowTest extends StreamTest {
     probe.expectMsgEquals("A");
     probe.expectMsgEquals("B");
     probe.expectMsgEquals("C");
+  }
+
+  @Test
+  public void mustBeAbleToUseCollectType() throws Exception {
+    final TestKit probe = new TestKit(system);
+    final Iterable<FlowSpec.Fruit> input = Arrays.asList(new FlowSpec.Apple(), new FlowSpec.Orange());
+
+    Source.from(input).via(Flow.of(FlowSpec.Fruit.class).collectType(FlowSpec.Apple.class))
+        .runForeach((apple) -> probe.getRef().tell(apple, ActorRef.noSender()), materializer);
+    probe.expectMsgAnyClassOf(FlowSpec.Apple.class);
   }
 
   @Test

@@ -17,6 +17,7 @@ import java.util.Comparator
 
 import scala.compat.java8.FutureConverters._
 import java.util.concurrent.CompletionStage
+import scala.reflect.ClassTag
 
 object SubFlow {
   /**
@@ -305,6 +306,24 @@ class SubFlow[In, Out, Mat](delegate: scaladsl.SubFlow[Out, Mat, scaladsl.Flow[I
    */
   def collect[T](pf: PartialFunction[Out, T]): SubFlow[In, T, Mat] =
     new SubFlow(delegate.collect(pf))
+
+  /**
+   * Transform this stream by testing the type of each of the elements
+   * on which the element is an instance of the provided type as they pass through this processing step.
+   * Non-matching elements are filtered out.
+   *
+   * Adheres to the [[ActorAttributes.SupervisionStrategy]] attribute.
+   *
+   * '''Emits when''' the element is an instance of the provided type
+   *
+   * '''Backpressures when''' the element is an instance of the provided type and downstream backpressures
+   *
+   * '''Completes when''' upstream completes
+   *
+   * '''Cancels when''' downstream cancels
+   */
+  def collectType[T](clazz: Class[T]): javadsl.SubFlow[In, T, Mat] =
+    new SubFlow(delegate.collectType[T](ClassTag[T](clazz)))
 
   /**
    * Chunk up this stream into groups of the given size, with the last group
