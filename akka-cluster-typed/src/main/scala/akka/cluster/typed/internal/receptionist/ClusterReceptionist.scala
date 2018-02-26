@@ -79,7 +79,6 @@ private[typed] object ClusterReceptionist extends ReceptionistBehaviorProvider {
     TypedMultiMap.empty[AbstractServiceKey, SubscriptionsKV]
   ).narrow[Command]
 
-
   /**
    * @param state The last seen state from the replicator - only updated when we get an update from th replicator
    * @param subscriptions Locally subscriptions, not replicated
@@ -96,8 +95,6 @@ private[typed] object ClusterReceptionist extends ReceptionistBehaviorProvider {
       val settings = ClusterReceptionistSettings(ctx.system)
       val replicator = DistributedData(untypedSystem).replicator
       implicit val cluster = Cluster(untypedSystem)
-
-
 
       // Helper to create new behavior
       def next(
