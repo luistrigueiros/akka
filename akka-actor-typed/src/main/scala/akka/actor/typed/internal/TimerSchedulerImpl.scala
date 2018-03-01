@@ -4,18 +4,13 @@
 package akka.actor.typed
 package internal
 
-import scala.concurrent.duration.FiniteDuration
-
 import akka.actor.Cancellable
-import akka.annotation.ApiMayChange
-import akka.annotation.DoNotInherit
+import akka.actor.typed.ActorRef.ActorRefOps
+import akka.actor.typed.scaladsl.ActorContext
 import akka.annotation.InternalApi
 import akka.dispatch.ExecutionContexts
-import akka.actor.typed.ActorRef
-import akka.actor.typed.ActorRef.ActorRefOps
-import akka.actor.typed.javadsl
-import akka.actor.typed.scaladsl
-import akka.actor.typed.scaladsl.ActorContext
+
+import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
 
 /**
@@ -26,10 +21,11 @@ import scala.reflect.ClassTag
   final case class TimerMsg(key: Any, generation: Int, owner: AnyRef)
 
   def withTimers[T](factory: TimerSchedulerImpl[T] ⇒ Behavior[T]): Behavior[T] = {
-    scaladsl.Behaviors.setup[T] { ctx ⇒
-      val timerScheduler = new TimerSchedulerImpl[T](ctx)
-      val behavior = factory(timerScheduler)
-      timerScheduler.intercept(behavior)
+    scaladsl.Behaviors.setup[T] {
+      case ctxImpl: ActorContextImpl[T] ⇒
+        val timerScheduler = ctxImpl.timer
+        val behavior = factory(timerScheduler)
+        timerScheduler.intercept(behavior)
     }
   }
 }
